@@ -1,5 +1,5 @@
 [package]
-name = "nasrinator"
+name = "sector_tool"
 version = "0.1.0"
 authors = ["Carson Page <carson.page@byterealm.com>"]
 edition = "2018"
