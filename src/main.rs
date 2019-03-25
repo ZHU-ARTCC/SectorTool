@@ -10,7 +10,6 @@ use structopt::StructOpt;
 use zip::ZipArchive;
 use regex::Regex;
 
-//mod aixm_ro;
 mod aixm_quick;
 mod geo;
 mod error;
