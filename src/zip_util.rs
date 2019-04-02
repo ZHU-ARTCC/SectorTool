@@ -1,6 +1,6 @@
 use std::io::prelude::*;
 use std::io::Cursor;
-use zip::read::{ZipFile, ZipArchive};
+use zip::read::{ZipArchive, ZipFile};
 
 type PseudoFile = Cursor<Vec<u8>>;
 

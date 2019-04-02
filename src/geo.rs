@@ -1,6 +1,6 @@
-use regex::Regex;
-use lazy_static::lazy_static;
 use itertools::Itertools;
+use lazy_static::lazy_static;
+use regex::Regex;
 
 #[derive(Clone, Copy, Debug)]
 pub struct LatLon(f64, f64);
@@ -22,38 +22,36 @@ impl LatLon {
     //Ex: 31-53-00.510N
     pub fn from_fix_txt(lat: &str, lon: &str) -> Option<Self> {
         fn to_dd(d: f64, m: f64, s: f64) -> f64 {
-            d + m/60.0 + s/3600.0
+            d + m / 60.0 + s / 3600.0
         }
 
         lazy_static! {
-            static ref LAT_LON_REGEX : Regex = Regex::new(r"(\d+)-(\d+)-(\d+\.\d+)(\w)").unwrap();
+            static ref LAT_LON_REGEX: Regex = Regex::new(r"(\d+)-(\d+)-(\d+\.\d+)(\w)").unwrap();
         }
 
-        let lat = LAT_LON_REGEX.captures(lat)
-            .and_then(|cap| {
-                let (d,m,s,dir) = (&cap[1], &cap[2], &cap[3], &cap[4]);
-                let (d, m, s) = (d.parse().ok()?, m.parse().ok()?, s.parse().ok()?);
-                let mut dd = to_dd(d, m, s);
-                if dir == "S" || dir == "W" {
-                    dd = - dd;
-                }
-                Some(dd)
-            });
+        let lat = LAT_LON_REGEX.captures(lat).and_then(|cap| {
+            let (d, m, s, dir) = (&cap[1], &cap[2], &cap[3], &cap[4]);
+            let (d, m, s) = (d.parse().ok()?, m.parse().ok()?, s.parse().ok()?);
+            let mut dd = to_dd(d, m, s);
+            if dir == "S" || dir == "W" {
+                dd = -dd;
+            }
+            Some(dd)
+        });
 
-        let lon = LAT_LON_REGEX.captures(lon)
-            .and_then(|cap| {
-                let (d,m,s,dir) = (&cap[1], &cap[2], &cap[3], &cap[4]);
-                let (d, m, s) = (d.parse().ok()?, m.parse().ok()?, s.parse().ok()?);
-                let mut dd = to_dd(d, m, s);
-                if dir == "S" || dir == "W" {
-                    dd = - dd;
-                }
-                Some(dd)
-            });
+        let lon = LAT_LON_REGEX.captures(lon).and_then(|cap| {
+            let (d, m, s, dir) = (&cap[1], &cap[2], &cap[3], &cap[4]);
+            let (d, m, s) = (d.parse().ok()?, m.parse().ok()?, s.parse().ok()?);
+            let mut dd = to_dd(d, m, s);
+            if dir == "S" || dir == "W" {
+                dd = -dd;
+            }
+            Some(dd)
+        });
 
         match (lat, lon) {
             (Some(lat), Some(lon)) => Some(LatLon(lat, lon)),
-            _ => None
+            _ => None,
         }
     }
 

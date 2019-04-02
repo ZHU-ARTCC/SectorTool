@@ -9,22 +9,23 @@ use std::error::Error;
 use std::fs::File;
 use std::io::prelude::*;
 
+use regex::Regex;
 use std::path::PathBuf;
 use structopt::StructOpt;
 use zip::ZipArchive;
-use regex::Regex;
 
 mod aixm;
-mod geo;
 mod error;
+mod geo;
 mod txt_data;
 mod zip_util;
 
+use geo::LatLon;
 use txt_data::*;
 use zip_util::*;
-use geo::LatLon;
 
-static VRC_SEPERATOR : &str = "\n\n;===============================================================================\n\n";
+static VRC_SEPERATOR: &str =
+    "\n\n;===============================================================================\n\n";
 
 #[derive(StructOpt)]
 struct Args {
@@ -37,12 +38,8 @@ struct Args {
         default_value = "./output.sct2"
     )]
     output: PathBuf,
-    #[structopt(
-        short = "f",
-        long = "filter",
-        raw(required = "true")
-    )]
-    artcc_ids: Vec<String>
+    #[structopt(short = "f", long = "filter", raw(required = "true"))]
+    artcc_ids: Vec<String>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -51,7 +48,7 @@ enum AirspaceType {
     ClassC,
     ClassD,
     ClassE,
-    MOA
+    MOA,
 }
 
 impl From<AirspaceType> for &str {
@@ -61,7 +58,7 @@ impl From<AirspaceType> for &str {
             AirspaceType::ClassC => "C",
             AirspaceType::ClassD => "D",
             AirspaceType::ClassE => "E",
-            AirspaceType::MOA => "MOA"
+            AirspaceType::MOA => "MOA",
         }
     }
 }
@@ -72,7 +69,6 @@ fn main() -> Result<(), Box<Error>> {
 
     let args = Args::from_args();
     let mut archive = ZipArchive::new(BufReader::new(File::open(args.input)?))?;
-
 
     // Airport processing
     println!("Unpacking airport AIXM...");
@@ -105,16 +101,14 @@ fn main() -> Result<(), Box<Error>> {
     ];
 
     let mut twr_frequencies = HashMap::new();
-    
+
     let frequency_regex = Regex::new(r"\d{1,3}\.\d{1,3}").expect("Bad regex");
 
     for r in twr.records("TWR3", twr3_delim) {
         let thing = r[2].split_whitespace().next().unwrap();
         let freq = frequency_regex.find(thing);
         if let Some(freq) = freq {
-            twr_frequencies.entry(r[1]).or_insert_with(|| {
-                freq.as_str()
-            });
+            twr_frequencies.entry(r[1]).or_insert_with(|| freq.as_str());
         }
     }
 
@@ -172,11 +166,11 @@ fn main() -> Result<(), Box<Error>> {
     println!("Processing fix data...");
     let fix = DataFile::from_reader(&mut archive.by_name("FIX.txt")?)?;
     let fix1_delim = &[
-        (0, 4), // Type
+        (0, 4),   // Type
         (66, 14), // Lat
         (80, 14), // Lon
         (228, 5), // NAS ID
-        (237, 4) // ARTCC ID
+        (237, 4), // ARTCC ID
     ];
 
     sct += VRC_SEPERATOR;

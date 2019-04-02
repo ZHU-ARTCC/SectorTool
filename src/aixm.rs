@@ -14,7 +14,7 @@ pub struct Unit {
 pub struct Airport {
     pub id: String,
     pub designator: String,
-    pub latlon: LatLon
+    pub latlon: LatLon,
 }
 
 #[derive(Clone, Debug, Builder)]
@@ -29,5 +29,5 @@ pub struct Navaid {
 #[derive(Copy, Clone, Debug)]
 pub enum NavaidType {
     VORTAC,
-    VORDME
+    VORDME,
 }

@@ -1,5 +1,5 @@
-use std::error::Error as StdError;
 use custom_error::custom_error;
+use std::error::Error as StdError;
 
 pub type Result<T> = std::result::Result<T, Error>;
 

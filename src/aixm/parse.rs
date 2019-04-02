@@ -1,9 +1,9 @@
+use super::*;
+use crate::error::{Error, Result};
+use crate::geo::LatLon;
 use quick_xml::events::*;
 use quick_xml::Reader;
 use std::io::BufRead;
-use crate::error::{Error, Result};
-use super::*;
-use crate::geo::LatLon;
 
 fn extract_gml_id(href: &str) -> Option<&str> {
     let s = href.split_at(href.find("@gml:id")?).1;
@@ -12,20 +12,23 @@ fn extract_gml_id(href: &str) -> Option<&str> {
     Some(data.next()?.trim())
 }
 
-fn get_attribute<B: BufRead>(reader: &Reader<B>, tag: &BytesStart, attr: &str) -> Result<Option<String>> {
-    tag.attributes().flat_map(|x| x)
+fn get_attribute<B: BufRead>(
+    reader: &Reader<B>,
+    tag: &BytesStart,
+    attr: &str,
+) -> Result<Option<String>> {
+    tag.attributes()
+        .flat_map(|x| x)
         .map(|x| (x.key, x.unescape_and_decode_value(reader)))
-                    .find(|a| a.0 == attr.as_bytes())
-                    .map(|(key, val)| val)
-                    .transpose()
-                    .map_err(|e| e.into())
+        .find(|a| a.0 == attr.as_bytes())
+        .map(|(key, val)| val)
+        .transpose()
+        .map_err(|e| e.into())
 }
 
-fn get_gml_link<B: BufRead>(reader: &Reader<B>, tag: &BytesStart) -> Result<Option<String>>{
+fn get_gml_link<B: BufRead>(reader: &Reader<B>, tag: &BytesStart) -> Result<Option<String>> {
     let attr = get_attribute(reader, tag, "xlink:href")?;
-    Ok(
-        attr.and_then(|a| extract_gml_id(&a).map(|x| x.to_string()))
-    )
+    Ok(attr.and_then(|a| extract_gml_id(&a).map(|x| x.to_string())))
 }
 
 fn get_unit<B: BufRead>(reader: &mut Reader<B>, buf: &mut Vec<u8>) -> Result<Unit> {
@@ -59,7 +62,7 @@ fn get_unit<B: BufRead>(reader: &mut Reader<B>, buf: &mut Vec<u8>) -> Result<Uni
             }
             Event::End(ref event) if event.name() == b"aixm:Unit" => break,
             Event::Eof => return Err(quick_xml::Error::UnexpectedEof("EOF".to_owned()).into()),
-            _ => ()
+            _ => (),
         }
         buf.clear();
     }
@@ -67,8 +70,11 @@ fn get_unit<B: BufRead>(reader: &mut Reader<B>, buf: &mut Vec<u8>) -> Result<Uni
     unit.build().map_err(|_| Error::NotYielded)
 }
 
-
-fn get_airport<B: BufRead>(reader: &mut Reader<B>, buf: &mut Vec<u8>, start: &BytesStart) -> Result<Airport> {
+fn get_airport<B: BufRead>(
+    reader: &mut Reader<B>,
+    buf: &mut Vec<u8>,
+    start: &BytesStart,
+) -> Result<Airport> {
     let mut airport = AirportBuilder::default();
 
     if let Some(id) = get_attribute(reader, start, "gml:id")? {
@@ -85,7 +91,7 @@ fn get_airport<B: BufRead>(reader: &mut Reader<B>, buf: &mut Vec<u8>, start: &By
             }
             Event::End(ref event) if event.name() == b"aixm:AirportHeliport" => break,
             Event::Eof => return Err(quick_xml::Error::UnexpectedEof("EOF".to_owned()).into()),
-            _ => ()
+            _ => (),
         }
         buf.clear();
     }
@@ -93,7 +99,10 @@ fn get_airport<B: BufRead>(reader: &mut Reader<B>, buf: &mut Vec<u8>, start: &By
     airport.build().map_err(|_| Error::NotYielded)
 }
 
-pub fn get_airport_info<B: BufRead, T: AsRef<str>>(aixm: &mut Reader<B>, filter: &[T]) -> Result<Vec<Airport>> {
+pub fn get_airport_info<B: BufRead, T: AsRef<str>>(
+    aixm: &mut Reader<B>,
+    filter: &[T],
+) -> Result<Vec<Airport>> {
     use std::collections::HashSet;
     let mut buf = Vec::new();
     let mut units = HashSet::new();
@@ -103,12 +112,14 @@ pub fn get_airport_info<B: BufRead, T: AsRef<str>>(aixm: &mut Reader<B>, filter:
             Event::Start(ref event) if event.name() == b"aixm:Unit" => {
                 match get_unit(aixm, &mut buf) {
                     Ok(unit) => {
-                        if unit.ty == "ARTCC" && filter.iter().any(|x| x.as_ref() == unit.designator) {
+                        if unit.ty == "ARTCC"
+                            && filter.iter().any(|x| x.as_ref() == unit.designator)
+                        {
                             units.insert(unit.airport_location);
                         }
                     }
                     Err(Error::NotYielded) => (),
-                    Err(x) => return Err(x) 
+                    Err(x) => return Err(x),
                 }
             }
             Event::Start(ref event) if event.name() == b"aixm:AirportHeliport" => {
@@ -117,11 +128,11 @@ pub fn get_airport_info<B: BufRead, T: AsRef<str>>(aixm: &mut Reader<B>, filter:
                         airports.push(airport);
                     }
                     Err(Error::NotYielded) => (),
-                    Err(x) => return Err(x) 
+                    Err(x) => return Err(x),
                 }
             }
             Event::Eof => break,
-            _ => ()
+            _ => (),
         }
         buf.clear();
     }
@@ -145,16 +156,20 @@ fn get_navaid<B: BufRead>(reader: &mut Reader<B>) -> Result<Navaid> {
     loop {
         match reader.read_event(&mut buf)? {
             Event::Start(ref event) if event.name() == b"aixm:designator" => {
-                 let raw = reader.read_text(b"aixm:designator", &mut buf)?;
-                 navaid.designator(raw); 
+                let raw = reader.read_text(b"aixm:designator", &mut buf)?;
+                navaid.designator(raw);
             }
             Event::Start(ref event) if event.name() == b"aixm:type" => {
                 let raw = reader.read_text(b"aixm:type", &mut buf)?;
                 match &*raw {
-                    "VORTAC" => {navaid.ty(NavaidType::VORTAC);},
-                    "VOR_DME" => {navaid.ty(NavaidType::VORDME);},
-                    _ => ()
-                } 
+                    "VORTAC" => {
+                        navaid.ty(NavaidType::VORTAC);
+                    }
+                    "VOR_DME" => {
+                        navaid.ty(NavaidType::VORDME);
+                    }
+                    _ => (),
+                }
             }
             Event::Start(ref event) if event.name() == b"gml:pos" => {
                 let raw = reader.read_text(b"gml:pos", &mut buf)?;
@@ -166,7 +181,7 @@ fn get_navaid<B: BufRead>(reader: &mut Reader<B>) -> Result<Navaid> {
             }
             Event::End(ref event) if event.name() == b"aixm:Navaid" => break,
             Event::Eof => return Err(quick_xml::Error::UnexpectedEof("EOF".to_owned()).into()),
-            _ => ()
+            _ => (),
         }
         buf.clear();
     }
@@ -174,25 +189,26 @@ fn get_navaid<B: BufRead>(reader: &mut Reader<B>) -> Result<Navaid> {
     navaid.build().map_err(|_| Error::NotYielded)
 }
 
-pub fn get_navaid_info<B: BufRead, T: AsRef<str>>(aixm: &mut Reader<B>, filter: &[T]) -> Result<Vec<Navaid>> {
+pub fn get_navaid_info<B: BufRead, T: AsRef<str>>(
+    aixm: &mut Reader<B>,
+    filter: &[T],
+) -> Result<Vec<Navaid>> {
     let mut buf = Vec::new();
     let mut navaids = Vec::new();
 
     loop {
         match aixm.read_event(&mut buf)? {
-            Event::Start(ref event) if event.name() == b"aixm:Navaid" => {
-                match get_navaid(aixm) {
-                    Ok(navaid) => {
-                        if filter.iter().any(|x| x.as_ref() == navaid.low_id) {
-                            navaids.push(navaid)
-                        }
+            Event::Start(ref event) if event.name() == b"aixm:Navaid" => match get_navaid(aixm) {
+                Ok(navaid) => {
+                    if filter.iter().any(|x| x.as_ref() == navaid.low_id) {
+                        navaids.push(navaid)
                     }
-                    Err(Error::NotYielded) => (),
-                    Err(e) => break Err(e)
                 }
-            }
+                Err(Error::NotYielded) => (),
+                Err(e) => break Err(e),
+            },
             Event::Eof => break Ok(navaids),
-            _ => ()
+            _ => (),
         }
         buf.clear();
     }

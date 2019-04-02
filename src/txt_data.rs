@@ -19,30 +19,38 @@ impl DataFile {
     pub fn from_reader<B: Read>(reader: &mut B) -> Result<DataFile> {
         let mut buf = Vec::new();
         reader.read_to_end(&mut buf)?;
-        Ok(DataFile { buf: String::from_utf8_lossy(& buf).into_owned() })
+        Ok(DataFile {
+            buf: String::from_utf8_lossy(&buf).into_owned(),
+        })
     }
 }
 
 struct Span(usize, usize);
 
 impl DataFile {
-    pub fn records<'a, 'b>(&'a self, ty: &'b str, delimiters: &'b [(usize, usize)]) -> RecordIter<'a, 'b> {
-        let delimiters = delimiters.iter().map(|&(p, l)| Span(p, p + l)).collect::<Vec<_>>();
+    pub fn records<'a, 'b>(
+        &'a self,
+        ty: &'b str,
+        delimiters: &'b [(usize, usize)],
+    ) -> RecordIter<'a, 'b> {
+        let delimiters = delimiters
+            .iter()
+            .map(|&(p, l)| Span(p, p + l))
+            .collect::<Vec<_>>();
         //assert!(ty.len() <= delimiters[0].1);
         RecordIter {
             lines: self.buf.lines(),
             ty,
-            delimiters
+            delimiters,
         }
     }
 }
-
 
 use std::str::Lines;
 pub struct RecordIter<'a, 'b> {
     lines: Lines<'a>,
     ty: &'b str,
-    delimiters: Vec<Span>
+    delimiters: Vec<Span>,
 }
 
 impl<'a, 'b> Iterator for RecordIter<'a, 'b> {
@@ -53,7 +61,11 @@ impl<'a, 'b> Iterator for RecordIter<'a, 'b> {
             let Span(l, r) = self.delimiters[0];
             if &line[l..r] == self.ty {
                 break Some(Record {
-                    fields: self.delimiters.iter().map(|&Span(l,r)| line[l..r].trim()).collect::<Vec<_>>()
+                    fields: self
+                        .delimiters
+                        .iter()
+                        .map(|&Span(l, r)| line[l..r].trim())
+                        .collect::<Vec<_>>(),
                 });
             }
         }
@@ -62,7 +74,7 @@ impl<'a, 'b> Iterator for RecordIter<'a, 'b> {
 
 #[derive(Debug)]
 pub struct Record<'a> {
-    fields: Vec<&'a str>
+    fields: Vec<&'a str>,
 }
 
 use std::ops::Index;
