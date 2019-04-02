@@ -64,19 +64,21 @@ impl From<AirspaceType> for &str {
 
 fn main() -> Result<(), Box<Error>> {
     use std::collections::HashMap;
+    use std::io::BufReader;
 
     let args = Args::from_args();
-    let mut archive = ZipArchive::new(File::open(args.input)?)?;
+    let mut archive = ZipArchive::new(BufReader::new(File::open(args.input)?))?;
 
 
     // Airport processing
-
+    println!("Unpacking airport AIXM...");
     let apt_aixm_zip =
         archive.by_name("Additional_Data/AIXM/AIXM_5.1/XML-Subscriber-Files/APT_AIXM.zip")?;
     let apt_aixm_file = zip_to_pseudofile(apt_aixm_zip).expect("Z->P failed");
-    println!("Unpack Done!");
     let mut apt = quick_xml::Reader::from_reader(apt_aixm_file);
+    println!("Processing airport AIXM...");
     let airports = aixm_quick::get_airport_info(&mut apt, &args.artcc_ids)?;
+    println!("Processing tower frequencies...");
     let twr = DataFile::from_reader(&mut archive.by_name("TWR.txt")?)?;
     let mut sct = String::new();
 
@@ -125,6 +127,8 @@ fn main() -> Result<(), Box<Error>> {
         })
         .collect();
 
+    println!("Merging airport data...");
+
     sct += VRC_SEPERATOR;
     sct += "[AIRPORT]\n";
 
@@ -144,10 +148,12 @@ fn main() -> Result<(), Box<Error>> {
     }
 
     // VOR and DME Processing
+    println!("Unpacking navaid AIXM...");
     let nav_aixm_zip =
         archive.by_name("Additional_Data/AIXM/AIXM_5.1/XML-Subscriber-Files/NAV_AIXM.zip")?;
     let nav_aixm_file = zip_to_pseudofile(nav_aixm_zip).expect("Z->P failed");
 
+    println!("Processing navaid AIXM...");
     let mut nav = quick_xml::Reader::from_reader(nav_aixm_file);
     let navaids = aixm_quick::get_navaid_info(&mut nav, &args.artcc_ids)?;
 
@@ -159,6 +165,7 @@ fn main() -> Result<(), Box<Error>> {
     }
 
     // Fixes / NAVAID processing
+    println!("Processing fix data...");
     let fix = DataFile::from_reader(&mut archive.by_name("FIX.txt")?)?;
     let fix1_delim = &[
         (0, 4), // Type
@@ -167,7 +174,6 @@ fn main() -> Result<(), Box<Error>> {
         (228, 5), // NAS ID
         (237, 4) // ARTCC ID
     ];
-
 
     sct += VRC_SEPERATOR;
     sct += "[FIXES]\n";
@@ -184,6 +190,7 @@ fn main() -> Result<(), Box<Error>> {
         }
     }
 
+    println!("Outputing sct2 data...");
     let mut output = std::fs::File::create(args.output)?;
     output.write_all(sct.as_bytes())?;
     Ok(())

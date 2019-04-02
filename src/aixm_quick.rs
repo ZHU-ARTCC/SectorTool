@@ -29,7 +29,7 @@ fn get_attribute<B: BufRead>(reader: &Reader<B>, tag: &BytesStart, attr: &str) -
                     .map(|a| a.1.map_err(|e| e.into()))
 }
 
-fn get_unit<B: BufRead>(reader: &mut Reader<B>) -> Result<Unit> {
+fn get_unit<B: BufRead>(reader: &mut Reader<B>, buf: &mut Vec<u8>) -> Result<Unit> {
     let mut unit = Unit {
         designator: String::new(),
         ty: String::new(),
@@ -37,14 +37,13 @@ fn get_unit<B: BufRead>(reader: &mut Reader<B>) -> Result<Unit> {
     };
     let mut airport_location = None;
 
-    let mut buf = Vec::new();
     loop {
-        match reader.read_event(&mut buf)? {
+        match reader.read_event(buf)? {
             Event::Start(ref event) if event.name() == b"aixm:designator" => {
-                unit.designator = reader.read_text("aixm:designator", &mut buf)?
+                unit.designator = reader.read_text("aixm:designator", buf)?
             }
             Event::Start(ref event) if event.name() == b"aixm:type" => {
-                unit.ty = reader.read_text("aixm:type", &mut buf)?
+                unit.ty = reader.read_text("aixm:type", buf)?
             }
             Event::Empty(ref event) if event.name() == b"aixm:airportLocation" => {
                 airport_location = get_attribute(reader, event, "xlink:href");
@@ -78,19 +77,18 @@ pub struct Airport {
     pub latlon: LatLon
 }
 
-fn get_airport<B: BufRead>(reader: &mut Reader<B>, start: &BytesStart) -> Result<Airport> {
+fn get_airport<B: BufRead>(reader: &mut Reader<B>, buf: &mut Vec<u8>, start: &BytesStart) -> Result<Airport> {
     let id = get_attribute(reader, start, "gml:id").expect("Airport->ID")?;
     let mut designator = String::new();
     let mut latlon = None;
 
-    let mut buf = Vec::new();
     loop {
-        match reader.read_event(&mut buf)? {
+        match reader.read_event(buf)? {
             Event::Start(ref event) if event.name() == b"aixm:designator" => {
-                designator = reader.read_text("aixm:designator", &mut buf)?;
+                designator = reader.read_text("aixm:designator", buf)?;
             }
             Event::Start(ref event) if event.name() == b"gml:pos" => {
-                latlon = Some(LatLon::from_aixm(&reader.read_text("gml:pos", &mut buf)?));
+                latlon = Some(LatLon::from_aixm(&reader.read_text("gml:pos", buf)?));
             }
             Event::End(ref event) if event.name() == b"aixm:AirportHeliport" => break,
             Event::Eof => return Err(quick_xml::Error::UnexpectedEof("EOF".to_owned()).into()),
@@ -116,7 +114,7 @@ pub fn get_airport_info<B: BufRead, T: AsRef<str>>(aixm: &mut Reader<B>, filter:
     loop {
         match aixm.read_event(&mut buf)? {
             Event::Start(ref event) if event.name() == b"aixm:Unit" => {
-                match get_unit(aixm) {
+                match get_unit(aixm, &mut buf) {
                     Ok(unit) => {
                         if unit.ty == "ARTCC" && filter.iter().any(|x| x.as_ref() == unit.designator) {
                             units.insert(unit.airport_location);
@@ -127,7 +125,7 @@ pub fn get_airport_info<B: BufRead, T: AsRef<str>>(aixm: &mut Reader<B>, filter:
                 }
             }
             Event::Start(ref event) if event.name() == b"aixm:AirportHeliport" => {
-                match get_airport(aixm, event) {
+                match get_airport(aixm, &mut Vec::new(), event) {
                     Ok(airport) => {
                         airports.push(airport);
                     }
@@ -158,7 +156,7 @@ pub enum NavaidType {
     VORDME
 }
 
-fn get_navaid<B: BufRead>(reader: &mut Reader<B>, start: &BytesStart) -> Result<Navaid> {
+fn get_navaid<B: BufRead>(reader: &mut Reader<B>) -> Result<Navaid> {
     let mut navaid = Navaid {
         designator: String::new(),
         ty: NavaidType::VORTAC,
@@ -205,7 +203,7 @@ pub fn get_navaid_info<B: BufRead, T: AsRef<str>>(aixm: &mut Reader<B>, filter: 
     loop {
         match aixm.read_event(&mut buf)? {
             Event::Start(ref event) if event.name() == b"aixm:Navaid" => {
-                match get_navaid(aixm, event) {
+                match get_navaid(aixm) {
                     Ok(navaid) => {
                         if filter.iter().any(|x| x.as_ref() == navaid.low_id) {
                             navaids.push(navaid)
