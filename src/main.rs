@@ -10,7 +10,7 @@ use structopt::StructOpt;
 use zip::ZipArchive;
 use regex::Regex;
 
-mod aixm_quick;
+mod aixm;
 mod geo;
 mod error;
 mod txt_data;
@@ -77,7 +77,7 @@ fn main() -> Result<(), Box<Error>> {
     let apt_aixm_file = zip_to_pseudofile(apt_aixm_zip).expect("Z->P failed");
     let mut apt = quick_xml::Reader::from_reader(apt_aixm_file);
     println!("Processing airport AIXM...");
-    let airports = aixm_quick::get_airport_info(&mut apt, &args.artcc_ids)?;
+    let airports = aixm::parse::get_airport_info(&mut apt, &args.artcc_ids)?;
     println!("Processing tower frequencies...");
     let twr = DataFile::from_reader(&mut archive.by_name("TWR.txt")?)?;
     let mut sct = String::new();
@@ -155,7 +155,7 @@ fn main() -> Result<(), Box<Error>> {
 
     println!("Processing navaid AIXM...");
     let mut nav = quick_xml::Reader::from_reader(nav_aixm_file);
-    let navaids = aixm_quick::get_navaid_info(&mut nav, &args.artcc_ids)?;
+    let navaids = aixm::parse::get_navaid_info(&mut nav, &args.artcc_ids)?;
 
     sct += VRC_SEPERATOR;
     sct += "[VOR]\n";
