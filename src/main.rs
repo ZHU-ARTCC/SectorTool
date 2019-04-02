@@ -1,6 +1,10 @@
 #![deny(clippy::all)]
 #![forbid(unsafe_code)]
 
+// FIXME: When derive_builder supports Rust 2018 syntax switch to a local import
+#![macro_use]
+extern crate derive_builder;
+
 use std::error::Error;
 use std::fs::File;
 use std::io::prelude::*;

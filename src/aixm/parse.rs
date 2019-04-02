@@ -2,7 +2,7 @@ use quick_xml::events::*;
 use quick_xml::Reader;
 use std::io::BufRead;
 use crate::error::{Error, Result};
-
+use super::types::*;
 use crate::geo::LatLon;
 
 const XMLNS_XLINK: &str = "http://www.w3.org/1999/xlink";
@@ -15,12 +15,7 @@ fn extract_gml_id(href: &str) -> Option<&str> {
     Some(data.next()?.trim())
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Unit {
-    designator: String,
-    ty: String,
-    airport_location: String,
-}
+
 
 fn get_attribute<B: BufRead>(reader: &Reader<B>, tag: &BytesStart, attr: &str) -> Option<Result<String>> {
     tag.attributes().flat_map(|x| x)
@@ -70,12 +65,6 @@ fn get_unit<B: BufRead>(reader: &mut Reader<B>, buf: &mut Vec<u8>) -> Result<Uni
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct Airport {
-    pub id: String,
-    pub designator: String,
-    pub latlon: LatLon
-}
 
 fn get_airport<B: BufRead>(reader: &mut Reader<B>, buf: &mut Vec<u8>, start: &BytesStart) -> Result<Airport> {
     let id = get_attribute(reader, start, "gml:id").expect("Airport->ID")?;
@@ -142,18 +131,6 @@ pub fn get_airport_info<B: BufRead, T: AsRef<str>>(aixm: &mut Reader<B>, filter:
     airports.retain(|a| units.contains(&a.id));
 
     Ok(airports)
-}
-
-pub struct Navaid {
-    pub designator: String,
-    pub ty: NavaidType,
-    pub latlon: LatLon,
-    pub low_id: String,
-}
-
-pub enum NavaidType {
-    VORTAC,
-    VORDME
 }
 
 fn get_navaid<B: BufRead>(reader: &mut Reader<B>) -> Result<Navaid> {
